@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lynax</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080808; --bg2: #0d0d0d; --fg: #e8e8e8; --dim: #444;
+    --accent: #a078d0; --accent2: #5a3a80;
+    --mono: 'Space Mono', monospace; --sans: 'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 13px; line-height: 1.7; cursor: none; overflow-x: hidden; }
+
+  /* grain */
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999; opacity: 0.4;
+  }
+  /* scanlines */
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);
+    pointer-events: none; z-index: 9998;
+  }
+
+  /* === CURSOR === */
+  .cursor-dot { position: fixed; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; pointer-events: none; z-index: 10001; transform: translate(-50%,-50%); transition: transform 0.08s; }
+  .cursor-ring { position: fixed; width: 28px; height: 28px; border: 1px solid rgba(160,120,210,0.35); border-radius: 50%; pointer-events: none; z-index: 10000; transform: translate(-50%,-50%); transition: left 0.14s ease, top 0.14s ease, width 0.2s, height 0.2s, border-color 0.2s; }
+  .cursor-ring.expand { width: 48px; height: 48px; border-color: rgba(160,120,210,0.7); }
+
+  /* === PARTICLES === */
+  #particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+  /* === ORB === */
+  .orb {
+    position: fixed; width: 700px; height: 700px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(100,40,180,0.1) 0%, transparent 65%);
+    top: -250px; right: -200px; pointer-events: none; z-index: 0;
+    animation: orbFloat 10s ease-in-out infinite;
+  }
+  .orb2 {
+    position: fixed; width: 400px; height: 400px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(80,20,140,0.07) 0%, transparent 65%);
+    bottom: -100px; left: -100px; pointer-events: none; z-index: 0;
+    animation: orbFloat 14s ease-in-out infinite reverse;
+  }
+  @keyframes orbFloat { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-25px,35px)} }
+
+  /* === SPOTLIGHT === */
+  .spotlight {
+    position: fixed; pointer-events: none; z-index: 1;
+    width: 500px; height: 500px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(130,70,210,0.07) 0%, transparent 70%);
+    transform: translate(-50%,-50%);
+    transition: left 0.1s ease, top 0.1s ease;
+  }
+
+  /* === NAV === */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 48px; border-bottom: 1px solid #111;
+    background: rgba(8,8,8,0.9); backdrop-filter: blur(12px);
+  }
+  .nav-logo { font-family: var(--sans); font-weight: 800; font-size: 18px; letter-spacing: -0.5px; color: var(--fg); text-decoration: none; cursor: none; }
+  .nav-links { display: flex; gap: 28px; list-style: none; align-items: center; }
+  .nav-links a { color: var(--dim); text-decoration: none; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; transition: color 0.2s; cursor: none; }
+  .nav-links a:hover { color: var(--fg); }
+  .lang-btn { background: none; border: 1px solid var(--accent2); color: var(--accent); font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em; padding: 4px 10px; cursor: none; transition: all 0.2s; }
+  .lang-btn:hover { background: var(--accent2); color: var(--fg); }
+
+  /* === HERO === */
+  .hero {
+    min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 0 48px 80px; position: relative; border-bottom: 1px solid #111; z-index: 2;
+  }
+  .hero-tag { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 24px; opacity: 0; animation: fadeUp 0.8s 0.3s forwards; }
+
+  /* SPLIT + GLITCH name */
+  .hero-name {
+    font-family: var(--sans); font-weight: 800;
+    font-size: clamp(64px, 12vw, 140px);
+    line-height: 0.9; letter-spacing: -4px;
+    position: relative; display: inline-block;
+  }
+  .name-lyn {
+    display: inline-block; opacity: 0;
+    animation: slideFromLeft 0.7s 0.5s forwards;
+    /* gradient shimmer */
+    background: linear-gradient(135deg, #e8e8e8 0%, #c8a8f0 50%, #e8e8e8 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    animation: slideFromLeft 0.7s 0.5s forwards, shimmer 5s 1.5s ease-in-out infinite;
+  }
+  .name-ax {
+    display: inline-block; color: transparent; -webkit-text-stroke: 1px #333;
+    opacity: 0; animation: slideFromRight 0.7s 0.5s forwards;
+  }
+  /* glitch layers */
+  .hero-name::before, .hero-name::after {
+    content: 'lynax'; position: absolute; top: 0; left: 0;
+    font-family: var(--sans); font-weight: 800; font-size: inherit; line-height: inherit; letter-spacing: inherit;
+    opacity: 0; pointer-events: none;
+  }
+  .hero-name::before { color: rgba(160,100,255,0.6); animation: glitch1 8s 2s infinite; clip-path: polygon(0 15%, 100% 15%, 100% 35%, 0 35%); }
+  .hero-name::after  { color: rgba(60,180,255,0.4); animation: glitch2 8s 2.3s infinite; clip-path: polygon(0 65%, 100% 65%, 100% 80%, 0 80%); }
+  @keyframes glitch1 { 0%,88%,100%{opacity:0;transform:translate(0)} 89%{opacity:1;transform:translate(-5px,1px)} 90%{opacity:1;transform:translate(5px,-1px)} 91%{opacity:1;transform:translate(-2px,2px)} 92%{opacity:0} }
+  @keyframes glitch2 { 0%,88%,100%{opacity:0;transform:translate(0)} 89%{opacity:1;transform:translate(5px,-2px)} 90%{opacity:1;transform:translate(-4px,2px)} 91%{opacity:1;transform:translate(3px,-1px)} 92%{opacity:0} }
+
+  @keyframes slideFromLeft { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes slideFromRight { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes shimmer { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+
+  /* gradient underline */
+  .hero-name-wrap::after {
+    content: ''; display: block; height: 2px; margin-top: 12px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    transform: scaleX(0); transform-origin: left;
+    animation: lineReveal 0.6s 1.3s forwards;
+  }
+  @keyframes lineReveal { to{transform:scaleX(1)} }
+
+  /* TYPEWRITER desc */
+  .hero-desc { margin-top: 44px; max-width: 460px; color: var(--dim); font-size: 12px; line-height: 1.9; opacity: 0; animation: fadeUp 0.8s 0.7s forwards; }
+  .tw { overflow: hidden; white-space: nowrap; border-right: 2px solid var(--accent); width: 0; display: inline-block; animation: typing 1.6s 1.5s steps(30) forwards, blink-cur 0.7s 1.5s step-end 10; }
+  @keyframes typing { to{width:100%} }
+  @keyframes blink-cur { 0%,100%{border-color:var(--accent)} 50%{border-color:transparent} }
+
+  /* counter ticker — my addition */
+  .hero-ticker {
+    position: absolute; bottom: 40px; left: 48px;
+    font-size: 10px; letter-spacing: 0.15em; color: #222;
+    display: flex; gap: 24px;
+    opacity: 0; animation: fadeUp 0.6s 1.8s forwards;
+  }
+  .ticker-item span { color: var(--accent); font-family: var(--sans); font-weight: 700; }
+
+  .hero-scroll { position: absolute; bottom: 40px; right: 48px; font-size: 10px; letter-spacing: 0.2em; color: var(--dim); text-transform: uppercase; writing-mode: vertical-rl; animation: pulse 2s infinite; }
+  .hero-line { position: absolute; top: 0; right: 180px; width: 1px; height: 100%; background: linear-gradient(to bottom, transparent, #181818 30%, #181818 70%, transparent); }
+
+  /* === SECTIONS === */
+  section { padding: 100px 48px; border-bottom: 1px solid #111; position: relative; z-index: 2; }
+  .section-label { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); margin-bottom: 60px; display: flex; align-items: center; gap: 16px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: #181818; max-width: 80px; }
+
+  /* === TERMINAL === */
+  .terminal-box {
+    border: 1px solid #181818;
+    background: #030303;
+    overflow: hidden;
+    max-width: 680px;
+  }
+  .terminal-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 18px; background: #080808;
+    border-bottom: 1px solid #111;
+  }
+  .t-dots { display: flex; gap: 6px; }
+  .t-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .t-dots span:nth-child(1) { background: #ff5f57; }
+  .t-dots span:nth-child(2) { background: #febc2e; }
+  .t-dots span:nth-child(3) { background: #28c840; }
+  .t-title { font-size: 11px; color: #444; letter-spacing: 0.08em; }
+  .terminal-body {
+    padding: 20px 22px; min-height: 220px; max-height: 380px;
+    overflow-y: auto; font-size: 12px; line-height: 1.8;
+  }
+  .t-line { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .t-prompt { color: var(--accent); white-space: nowrap; flex-shrink: 0; }
+  .t-cmd { color: #e8e8e8; }
+  .t-output { color: #555; margin: 4px 0 12px 0; white-space: pre-line; }
+  .t-output .t-hi { color: var(--accent); }
+  .t-output .t-green { color: #6dbf8a; }
+  .t-output .t-dim { color: #333; }
+  .t-input-row { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+  .t-input {
+    background: none; border: none; outline: none;
+    color: #e8e8e8; font-family: var(--mono); font-size: 12px;
+    flex: 1; caret-color: var(--accent);
+    cursor: none;
+  }
+  .t-cursor-blink { display: inline-block; width: 8px; height: 13px; background: var(--accent); animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 2px; }
+  .terminal-hint { margin-top: 14px; font-size: 10px; color: #2a2a2a; letter-spacing: 0.1em; }
+
+  /* === PARALLAX HERO === */
+  .hero-name-wrap { transform-style: preserve-3d; }
+
+  @media (max-width: 768px) {
+    .terminal-box { max-width: 100%; }
+    .terminal-body { min-height: 160px; font-size: 11px; }
+    .t-input { font-size: 11px; cursor: auto; }
+  }
+
+  /* === 3D CUBE + STACK === */
+  .stack-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .cube-wrap {
+    perspective: 600px;
+    width: 140px; height: 140px;
+    margin: 0 auto;
+  }
+
+  .cube {
+    width: 140px; height: 140px;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: rotateCube 12s linear infinite;
+    cursor: none;
+  }
+  .cube:hover { animation-play-state: paused; }
+
+  @keyframes rotateCube {
+    0%   { transform: rotateX(-20deg) rotateY(0deg); }
+    100% { transform: rotateX(-20deg) rotateY(360deg); }
+  }
+
+  .face {
+    position: absolute; width: 140px; height: 140px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--accent2);
+    font-family: var(--sans); font-weight: 800; font-size: 22px;
+    color: var(--accent);
+    background: rgba(10,6,18,0.85);
+    backdrop-filter: blur(2px);
+    letter-spacing: -1px;
+  }
+  .face-front  { transform: translateZ(70px); }
+  .face-back   { transform: rotateY(180deg) translateZ(70px); }
+  .face-left   { transform: rotateY(-90deg) translateZ(70px); }
+  .face-right  { transform: rotateY(90deg) translateZ(70px); }
+  .face-top    { transform: rotateX(90deg) translateZ(70px); }
+  .face-bottom { transform: rotateX(-90deg) translateZ(70px); }
+
+  /* subtle glow on faces */
+  .face::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(100,40,180,0.08) 0%, transparent 60%);
+  }
+
+  .stack-list {
+    display: flex; flex-direction: column;
+    gap: 1px; background: #111; border: 1px solid #111;
+  }
+  .stack-row {
+    background: var(--bg); padding: 20px 28px;
+    display: flex; align-items: center; gap: 24px;
+    transition: background 0.2s;
+  }
+  .stack-row:hover { background: var(--bg2); }
+  .stack-cat {
+    font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--dim); width: 80px; flex-shrink: 0;
+  }
+  .stack-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stag {
+    font-size: 11px; padding: 3px 10px;
+    border: 1px solid #1e1e1e; color: #666;
+    transition: all 0.2s; letter-spacing: 0.05em;
+  }
+  .stack-row:hover .stag { border-color: var(--accent2); color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .stack-layout { grid-template-columns: 1fr; gap: 40px; }
+    .cube-wrap { width: 100px; height: 100px; }
+    .cube { width: 100px; height: 100px; }
+    .face { width: 100px; height: 100px; font-size: 16px; }
+    .face-front  { transform: translateZ(50px); }
+    .face-back   { transform: rotateY(180deg) translateZ(50px); }
+    .face-left   { transform: rotateY(-90deg) translateZ(50px); }
+    .face-right  { transform: rotateY(90deg) translateZ(50px); }
+    .face-top    { transform: rotateX(90deg) translateZ(50px); }
+    .face-bottom { transform: rotateX(-90deg) translateZ(50px); }
+    .stack-row { padding: 16px 18px; gap: 14px; }
+    .stack-cat { width: 66px; font-size: 9px; }
+  }
+
+  /* === CODE BLOCK === */
+  .code-block {
+    border: 1px solid #181818;
+    background: #050505;
+    overflow: hidden;
+  }
+  .code-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid #141414;
+    background: #0a0a0a;
+  }
+  .code-dots { display: flex; gap: 6px; }
+  .code-dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .code-dots span:nth-child(1) { background: #3a3a3a; }
+  .code-dots span:nth-child(2) { background: #2a2a2a; }
+  .code-dots span:nth-child(3) { background: #222; }
+  .code-filename {
+    font-size: 11px; color: #555; letter-spacing: 0.08em;
+    flex: 1;
+  }
+  .code-link {
+    font-size: 10px; color: var(--accent2); text-decoration: none;
+    letter-spacing: 0.08em; transition: color 0.2s; white-space: nowrap;
+  }
+  .code-link:hover { color: var(--accent); }
+  .code-body {
+    padding: 28px 32px; overflow-x: auto;
+    font-family: var(--mono); font-size: 12px; line-height: 1.9;
+    color: #555;
+  }
+  /* syntax tokens */
+  .tok-kw  { color: #a078d0; }
+  .tok-fn  { color: #c8a8f0; }
+  .tok-str { color: #7a9e7a; }
+  .tok-num { color: #c8a060; }
+  .tok-op  { color: #555; }
+  .tok-mod { color: #8ab4d0; }
+  .tok-dec { color: #d0a050; }
+  .tok-bool{ color: #d07878; }
+  .tok-com { color: #333; font-style: italic; }
+
+  @media (max-width: 768px) {
+    .code-body { padding: 18px 16px; font-size: 11px; }
+    .code-header { padding: 12px 16px; }
+    .code-link { display: none; }
+  }
+
+  /* === SKILLS === */
+  .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1px; background: #111; border: 1px solid #111; }
+  .skill-item {
+    background: var(--bg); padding: 24px; position: relative; overflow: hidden;
+    transition: background 0.25s;
+  }
+  /* gradient shimmer bottom bar */
+  .skill-item::before { content: ''; position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: linear-gradient(90deg, var(--accent), transparent); transition: width 0.4s ease; }
+  /* corner glow */
+  .skill-item::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(100,40,180,0.05) 0%, transparent 55%); opacity: 0; transition: opacity 0.3s; }
+  .skill-item:hover { background: var(--bg2); }
+  .skill-item:hover::before { width: 100%; }
+  .skill-item:hover::after { opacity: 1; }
+  .skill-name { font-family: var(--sans); font-weight: 700; font-size: 14px; color: var(--fg); margin-bottom: 6px; position: relative; z-index: 1; }
+  .skill-level { font-size: 10px; color: var(--dim); letter-spacing: 0.1em; position: relative; z-index: 1; }
+
+  /* === PROJECTS === */
+  .projects-list { display: flex; flex-direction: column; gap: 1px; background: #111; border: 1px solid #111; }
+  .project-item {
+    background: var(--bg); padding: 32px; display: grid; grid-template-columns: 40px 1fr;
+    gap: 24px; align-items: start; text-decoration: none; color: inherit;
+    position: relative; overflow: hidden; transition: background 0.25s; cursor: none;
+  }
+  /* left border slide in */
+  .project-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); transform: scaleY(0); transform-origin: bottom; transition: transform 0.35s ease; }
+  .project-item:hover { background: var(--bg2); }
+  .project-item:hover::before { transform: scaleY(1); }
+  .project-num { font-size: 11px; color: var(--dim); padding-top: 3px; }
+  .project-name { font-family: var(--sans); font-weight: 700; font-size: 16px; color: var(--fg); margin-bottom: 8px; }
+  .project-desc { font-size: 12px; color: var(--dim); line-height: 1.6; }
+  .project-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .project-tag { font-size: 10px; letter-spacing: 0.1em; color: var(--accent); border: 1px solid var(--accent2); padding: 4px 10px; white-space: nowrap; }
+  .status { font-size: 10px; letter-spacing: 0.08em; padding: 3px 9px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .status-done { color: #6dbf8a; border: 1px solid #2a5a3a; }
+  .status-done::before { background: #6dbf8a; box-shadow: 0 0 5px #6dbf8a; }
+  .status-wip { color: #d4a84b; border: 1px solid #6a4a10; }
+  .status-wip::before { background: #d4a84b; box-shadow: 0 0 5px #d4a84b; animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* === ABOUT === */
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; }
+  .about-text { color: var(--dim); line-height: 2; font-size: 12px; }
+  .about-text p + p { margin-top: 16px; }
+  .about-stats { display: flex; flex-direction: column; gap: 1px; background: #111; border: 1px solid #111; align-self: start; }
+  .stat-item { background: var(--bg); padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+  .stat-item:hover { background: var(--bg2); }
+  .stat-label { font-size: 11px; color: var(--dim); letter-spacing: 0.1em; }
+  .stat-value { font-family: var(--sans); font-weight: 700; font-size: 14px; color: var(--accent); }
+
+  /* === CONTACT === */
+  .contact-block { display: flex; flex-direction: column; gap: 1px; background: #111; border: 1px solid #111; max-width: 480px; }
+  .contact-item { background: var(--bg); padding: 24px 32px; display: flex; justify-content: space-between; align-items: center; text-decoration: none; transition: background 0.2s; color: inherit; cursor: none; }
+  .contact-item:hover { background: var(--bg2); }
+  .contact-label { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .contact-value { font-family: var(--sans); font-weight: 700; font-size: 14px; color: var(--fg); }
+  .contact-arrow { color: var(--accent); font-size: 16px; margin-left: 16px; transition: transform 0.2s; }
+  .contact-item:hover .contact-arrow { transform: translateX(5px); }
+
+  /* === FOOTER === */
+  footer { padding: 32px 48px; display: flex; justify-content: space-between; align-items: center; color: #252525; font-size: 10px; letter-spacing: 0.1em; position: relative; z-index: 2; }
+
+  /* === KEYFRAMES === */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.8} }
+
+  /* === MOBILE === */
+  @media (max-width: 768px) {
+    nav { padding: 14px 20px; flex-wrap: wrap; gap: 10px; }
+    .nav-links { gap: 14px; flex-wrap: wrap; }
+    .nav-links a { font-size: 10px; }
+    .hero { padding: 0 20px 80px; min-height: 100svh; }
+    .hero-name { font-size: clamp(52px, 18vw, 90px); letter-spacing: -2px; }
+    .hero-desc { font-size: 11px; margin-top: 24px; }
+    .hero-scroll, .hero-line { display: none; }
+    .hero-ticker { left: 20px; bottom: 24px; gap: 16px; }
+    .tw { white-space: normal; animation: none; width: auto; border-right: none; }
+    section { padding: 56px 20px; }
+    .skills-grid { grid-template-columns: 1fr 1fr; }
+    .skill-item { padding: 18px; }
+    .about-grid { grid-template-columns: 1fr; gap: 32px; }
+    .about-text { font-size: 11px; }
+    .contact-block { max-width: 100%; }
+    .contact-item { padding: 18px 20px; }
+    footer { padding: 20px; flex-direction: column; gap: 6px; text-align: center; }
+    .cursor-dot, .cursor-ring, .spotlight { display: none; }
+    body, a, button { cursor: crosshair; }
+    #particles { display: none; }
+    .orb { width: 280px; height: 280px; }
+    .orb2 { display: none; }
+  }
+  @media (max-width: 400px) {
+    .skills-grid { grid-template-columns: 1fr; }
+    .hero-name { font-size: 50px; }
+    .nav-links { gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+<div class="orb"></div>
+<div class="orb2"></div>
+<div class="spotlight" id="spotlight"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<nav>
+  <a href="#" class="nav-logo">lynax</a>
+  <ul class="nav-links">
+    <li><a href="#skills" data-en="skills" data-ru="навыки">skills</a></li>
+    <li><a href="#projects" data-en="projects" data-ru="проекты">projects</a></li>
+    <li><a href="#code" data-en="snippet" data-ru="код">snippet</a></li>
+    <li><a href="#terminal-section" data-en="terminal" data-ru="терминал">terminal</a></li>
+    <li><a href="#stack" data-en="stack" data-ru="стек">stack</a></li>
+    <li><a href="#about" data-en="about" data-ru="обо мне">about</a></li>
+    <li><a href="#contact" data-en="contact" data-ru="контакт">contact</a></li>
+    <li><button class="lang-btn" id="langBtn" onclick="toggleLang()">RU</button></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-line"></div>
+  <div class="hero-tag" data-en="// developer &amp; builder" data-ru="// разработчик и создатель">// developer &amp; builder</div>
+  <div class="hero-name-wrap">
+    <h1 class="hero-name">
+      <span class="name-lyn">lyn</span><span class="name-ax">ax</span>
+    </h1>
+  </div>
+  <p class="hero-desc">
+    <span class="tw">python · c++ · linux</span><br>
+    <span style="opacity:0;animation:fadeUp 0.5s 3.3s forwards" data-en="building things that work." data-ru="строю то, что работает.">building things that work.</span><br>
+    <span style="color:#2e2e2e;opacity:0;animation:fadeUp 0.5s 3.6s forwards" data-en="sometimes things that shouldn't." data-ru="иногда то, что не должно.">sometimes things that shouldn't.</span>
+  </p>
+
+  <!-- MY ADDITION: live counters -->
+  <div class="hero-ticker">
+    <div class="ticker-item" data-en="projects" data-ru="проектов">projects &nbsp;<span id="cnt-projects">0</span></div>
+    <div class="ticker-item" data-en="years" data-ru="лет кода">years &nbsp;<span id="cnt-years">0</span></div>
+    <div class="ticker-item" data-en="commits" data-ru="коммитов">commits &nbsp;<span id="cnt-commits">0</span></div>
+  </div>
+
+  <div class="hero-scroll" data-en="scroll" data-ru="скролл">scroll</div>
+</section>
+
+<section id="skills">
+  <div class="section-label" data-en="skills" data-ru="навыки">skills</div>
+  <div class="skills-grid">
+    <div class="skill-item"><div class="skill-name">Python</div><div class="skill-level">aiogram · sqlalchemy · asyncio</div></div>
+    <div class="skill-item"><div class="skill-name">C++</div><div class="skill-level" data-en="Qt · systems programming" data-ru="Qt · системное программирование">Qt · systems programming</div></div>
+    <div class="skill-item"><div class="skill-name" data-en="Databases" data-ru="Базы данных">Databases</div><div class="skill-level">PostgreSQL · SQLite3</div></div>
+    <div class="skill-item"><div class="skill-name">Linux</div><div class="skill-level" data-en="Arch · shell scripting · servers" data-ru="Arch · шелл скрипты · серверы">Arch · shell scripting · servers</div></div>
+    <div class="skill-item"><div class="skill-name" data-en="Bots &amp; Automation" data-ru="Боты и автоматизация">Bots &amp; Automation</div><div class="skill-level">Telegram · Discord · Minecraft</div></div>
+    <div class="skill-item"><div class="skill-name" data-en="Tooling" data-ru="Инструменты">Tooling</div><div class="skill-level" data-en="Git · panels · deployment" data-ru="Git · панели · деплой">Git · panels · deployment</div></div>
+  </div>
+</section>
+
+<section id="projects">
+  <div class="section-label" data-en="projects" data-ru="проекты">projects</div>
+  <div class="projects-list">
+    <a href="https://github.com/lynaxpy/minecraft-bot-fisherman" target="_blank" class="project-item">
+      <div class="project-num">01</div>
+      <div><div class="project-name">minecraft-bot-fisherman</div><div class="project-desc" data-en="automated fishing bot for minecraft. fully autonomous, runs indefinitely." data-ru="автоматический бот-рыболов для майнкрафта. полностью автономный, работает бесконечно.">automated fishing bot for minecraft. fully autonomous, runs indefinitely.</div><div class="project-meta"><span class="project-tag">Python</span><span class="status status-done" data-en="done" data-ru="готово">done</span></div></div>
+    </a>
+    <a href="https://github.com/lynaxpy/discordrpc-cmus" target="_blank" class="project-item">
+      <div class="project-num">02</div>
+      <div><div class="project-name">discordrpc-cmus</div><div class="project-desc" data-en="discord rich presence integration for cmus music player." data-ru="интеграция discord rich presence для музыкального плеера cmus.">discord rich presence integration for cmus music player.</div><div class="project-meta"><span class="project-tag">Python</span><span class="status status-done" data-en="done" data-ru="готово">done</span></div></div>
+    </a>
+    <a href="https://github.com/lynaxpy/cafe-bot" target="_blank" class="project-item">
+      <div class="project-num">03</div>
+      <div><div class="project-name">cafe-bot</div><div class="project-desc" data-en="telegram bot for cafe management and ordering flow." data-ru="телеграм бот для управления кафе и обработки заказов.">telegram bot for cafe management and ordering flow.</div><div class="project-meta"><span class="project-tag">Python</span><span class="status status-wip" data-en="in progress" data-ru="в разработке">in progress</span></div></div>
+    </a>
+    <a href="https://github.com/lynaxpy" target="_blank" class="project-item">
+      <div class="project-num">04</div>
+      <div><div class="project-name">smm-assistant</div><div class="project-desc" data-en="telegram bot for smm — scheduled posts, media conversion, emoji generation." data-ru="телеграм бот для smm — отложенные посты, конвертация медиа, генерация эмодзи.">telegram bot for smm — scheduled posts, media conversion, emoji generation.</div><div class="project-meta"><span class="project-tag">Python</span><span class="status status-wip" data-en="in progress" data-ru="в разработке">in progress</span></div></div>
+    </a>
+  </div>
+</section>
+
+<section id="code">
+  <div class="section-label" data-en="snippet" data-ru="код">snippet</div>
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span></span><span></span><span></span></div>
+      <div class="code-filename">minecraft_fisher.py</div>
+      <a href="https://github.com/lynaxpy/minecraft-bot-fisherman" target="_blank" class="code-link" data-en="view on github →" data-ru="смотреть на github →">view on github →</a>
+    </div>
+    <pre class="code-body"><code><span class="tok-kw">from</span> <span class="tok-mod">javascript</span> <span class="tok-kw">import</span> require, On, globalThis
+
+mineflayer <span class="tok-op">=</span> require(<span class="tok-str">'mineflayer'</span>)
+bot <span class="tok-op">=</span> mineflayer.createBot({
+    <span class="tok-str">'host'</span>: <span class="tok-str">'127.0.0.1'</span>,
+    <span class="tok-str">'username'</span>: <span class="tok-str">'chunk_loader'</span>,
+    <span class="tok-str">'version'</span>: <span class="tok-str">"1.16.5"</span>
+})
+
+<span class="tok-dec">@On</span>(bot, <span class="tok-str">'chat'</span>)
+<span class="tok-kw">def</span> <span class="tok-fn">handle_chat</span>(this, username, message, <span class="tok-op">*</span>args):
+    <span class="tok-kw">if</span> <span class="tok-str">'рыбачь'</span> <span class="tok-kw">in</span> message.lower():
+        bot.chat(<span class="tok-str">f'ок, {username}, иду нахуй!'</span>)
+        globalThis.setTimeout(<span class="tok-kw">lambda</span>: start_fishing(), <span class="tok-num">100</span>)
+
+<span class="tok-dec">@On</span>(bot, <span class="tok-str">'playerCollect'</span>)
+<span class="tok-kw">def</span> <span class="tok-fn">on_collect</span>(this, collector, item, <span class="tok-op">*</span>args):
+    <span class="tok-kw">if</span> collector.username <span class="tok-op">==</span> bot.username:
+        <span class="tok-kw">if not</span> fish_caught:
+            fish_caught <span class="tok-op">=</span> <span class="tok-bool">True</span>
+            <span class="tok-fn">print</span>(<span class="tok-str">f"🎣 Рыба поймана!"</span>)
+            globalThis.setTimeout(<span class="tok-kw">lambda</span>: start_fishing(), <span class="tok-num">500</span>)
+
+<span class="tok-dec">@On</span>(bot, <span class="tok-str">'soundEffectHeard'</span>)
+<span class="tok-kw">def</span> <span class="tok-fn">on_sound</span>(this, sound_name, <span class="tok-op">*</span>args):
+    <span class="tok-kw">if</span> sound_name <span class="tok-op">==</span> <span class="tok-str">'entity.fishing_bobber.splash'</span>:
+        <span class="tok-fn">print</span>(<span class="tok-str">"🎣 Поклёвка! Подсекаем..."</span>)
+        bot.activateItem()</code></pre>
+  </div>
+</section>
+
+<section id="about">
+  <div class="section-label" data-en="about" data-ru="обо мне">about</div>
+  <div class="about-grid">
+    <div class="about-text">
+      <p data-en="developer from russia. been writing code since i was 9. started with curiosity, stayed for the craft." data-ru="разработчик из России. пишу код с 9 лет. начал из любопытства, остался ради мастерства.">developer from russia. been writing code since i was 9. started with curiosity, stayed for the craft.</p>
+      <p data-en="i build bots, automation tools, and things that solve actual problems. not demos — real software that runs." data-ru="пишу ботов, инструменты автоматизации и вещи которые решают реальные задачи. не демки — реальный софт который работает.">i build bots, automation tools, and things that solve actual problems. not demos — real software that runs.</p>
+      <p data-en="linux native. prefer clarity over cleverness. architecture first, then code." data-ru="linux нативный. предпочитаю ясность умности. сначала архитектура, потом код.">linux native. prefer clarity over cleverness. architecture first, then code.</p>
+      <p data-en="currently: freelance, open to interesting work." data-ru="сейчас: фриланс, открыт для интересных задач.">currently: freelance, open to interesting work.</p>
+    </div>
+    <div class="about-stats">
+      <div class="stat-item"><span class="stat-label" data-en="years coding" data-ru="лет в коде">years coding</span><span class="stat-value">5+</span></div>
+      <div class="stat-item"><span class="stat-label" data-en="primary language" data-ru="основной язык">primary language</span><span class="stat-value">Python</span></div>
+      <div class="stat-item"><span class="stat-label">os</span><span class="stat-value">Linux</span></div>
+      <div class="stat-item"><span class="stat-label" data-en="status" data-ru="статус">status</span><span class="stat-value" data-en="available" data-ru="доступен">available</span></div>
+      <div class="stat-item"><span class="stat-label">github</span><span class="stat-value">lynaxpy</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="section-label" data-en="contact" data-ru="контакт">contact</div>
+  <div class="contact-block">
+    <a href="https://t.me/hackrf1one" target="_blank" class="contact-item">
+      <span class="contact-label">telegram</span>
+      <span style="display:flex;align-items:center"><span class="contact-value">@hackrf1one</span><span class="contact-arrow">→</span></span>
+    </a>
+    <a href="https://github.com/lynaxpy" target="_blank" class="contact-item">
+      <span class="contact-label">github</span>
+      <span style="display:flex;align-items:center"><span class="contact-value">lynaxpy</span><span class="contact-arrow">→</span></span>
+    </a>
+  </div>
+</section>
+
+<!-- INTERACTIVE TERMINAL -->
+<section id="terminal-section">
+  <div class="section-label" data-en="terminal" data-ru="терминал">terminal</div>
+  <div class="terminal-box">
+    <div class="terminal-header">
+      <div class="t-dots"><span></span><span></span><span></span></div>
+      <div class="t-title">lynax@arch ~ $</div>
+    </div>
+    <div class="terminal-body" id="termBody">
+      <div class="t-line"><span class="t-prompt">lynax@arch:~$</span> <span class="t-cmd" id="bootCmd"></span></div>
+      <div class="t-output" id="termOutput"></div>
+      <div class="t-input-row" id="termInputRow" style="display:none">
+        <span class="t-prompt">lynax@arch:~$</span>
+        <input class="t-input" id="termInput" autocomplete="off" spellcheck="false" placeholder="type a command..." />
+      </div>
+    </div>
+  </div>
+  <div class="terminal-hint" data-en="try: help · whoislynax · skills · projects · contact · clear" data-ru="попробуй: help · whoislynax · skills · projects · contact · clear">try: help · whoislynax · skills · projects · contact · clear</div>
+</section>
+
+<!-- 3D CUBE SECTION -->
+<section id="stack">
+  <div class="section-label" data-en="stack" data-ru="стек">stack</div>
+  <div class="stack-layout">
+
+    <!-- fake 3D rotating cube -->
+    <div class="cube-wrap">
+      <div class="cube" id="cube">
+        <div class="face face-front"><span>&lt;/&gt;</span></div>
+        <div class="face face-back"><span>py</span></div>
+        <div class="face face-left"><span>c++</span></div>
+        <div class="face face-right"><span>sql</span></div>
+        <div class="face face-top"><span>tg</span></div>
+        <div class="face face-bottom"><span>git</span></div>
+      </div>
+    </div>
+
+    <!-- stack list -->
+    <div class="stack-list">
+      <div class="stack-row">
+        <span class="stack-cat" data-en="backend" data-ru="бэкенд">backend</span>
+        <div class="stack-tags">
+          <span class="stag">Python</span><span class="stag">aiogram</span><span class="stag">sqlalchemy</span><span class="stag">asyncio</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-cat" data-en="systems" data-ru="системы">systems</span>
+        <div class="stack-tags">
+          <span class="stag">C++</span><span class="stag">Qt</span><span class="stag">Linux</span><span class="stag">Arch</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-cat" data-en="data" data-ru="данные">data</span>
+        <div class="stack-tags">
+          <span class="stag">PostgreSQL</span><span class="stag">SQLite3</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-cat" data-en="tooling" data-ru="инструменты">tooling</span>
+        <div class="stack-tags">
+          <span class="stag">Git</span><span class="stag">Shell</span><span class="stag">panels</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>lynax © 2025</span>
+  <span data-en="built with intention" data-ru="сделано с намерением">built with intention</span>
+</footer>
+
+<script>
+// === PARTICLES ===
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let W, H, dots = [];
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
+for(let i=0; i<50; i++) dots.push({ x:Math.random()*W, y:Math.random()*H, vx:(Math.random()-0.5)*0.25, vy:(Math.random()-0.5)*0.25, r:Math.random()*1.2+0.3 });
+function drawParticles() {
+  ctx.clearRect(0,0,W,H);
+  dots.forEach(d => {
+    d.x+=d.vx; d.y+=d.vy;
+    if(d.x<0||d.x>W) d.vx*=-1;
+    if(d.y<0||d.y>H) d.vy*=-1;
+    ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+    ctx.fillStyle='rgba(130,70,210,0.2)'; ctx.fill();
+  });
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// === CURSOR ===
+const dot = document.getElementById('cursorDot');
+const ring = document.getElementById('cursorRing');
+const spotlight = document.getElementById('spotlight');
+document.addEventListener('mousemove', e => {
+  dot.style.left=e.clientX+'px'; dot.style.top=e.clientY+'px';
+  ring.style.left=e.clientX+'px'; ring.style.top=e.clientY+'px';
+  spotlight.style.left=e.clientX+'px'; spotlight.style.top=e.clientY+'px';
+});
+document.querySelectorAll('a,button').forEach(el => {
+  el.addEventListener('mouseenter', () => ring.classList.add('expand'));
+  el.addEventListener('mouseleave', () => ring.classList.remove('expand'));
+});
+
+// === LANG ===
+let currentLang = 'en';
+function toggleLang() {
+  currentLang = currentLang==='en'?'ru':'en';
+  document.getElementById('langBtn').textContent = currentLang==='en'?'RU':'EN';
+  document.querySelectorAll('[data-en]').forEach(el => {
+    const t = el.getAttribute('data-'+currentLang);
+    if(t) el.innerHTML=t;
+  });
+}
+
+// === COUNTER ANIMATION ===
+function animateCount(el, target, duration) {
+  let start = 0;
+  const step = target / (duration / 16);
+  const timer = setInterval(() => {
+    start = Math.min(start + step, target);
+    el.textContent = Math.floor(start);
+    if(start >= target) clearInterval(timer);
+  }, 16);
+}
+setTimeout(() => {
+  animateCount(document.getElementById('cnt-projects'), 4, 800);
+  animateCount(document.getElementById('cnt-years'), 5, 1000);
+  animateCount(document.getElementById('cnt-commits'), 47, 1200);
+}, 1800);
+
+// === PARALLAX HERO NAME ===
+document.addEventListener('mousemove', e => {
+  const wrap = document.querySelector('.hero-name-wrap');
+  if (!wrap) return;
+  const rx = ((e.clientY / window.innerHeight) - 0.5) * 10;
+  const ry = ((e.clientX / window.innerWidth) - 0.5) * -14;
+  wrap.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+});
+
+// === TERMINAL ===
+const termCommands = {
+  help: `<span class="t-hi">available commands:</span>
+<span class="t-dim">──────────────────</span>
+  <span class="t-hi">whoislynax</span> — who is lynax
+  <span class="t-hi">skills</span>    — tech stack
+  <span class="t-hi">projects</span>  — what i built
+  <span class="t-hi">contact</span>   — how to reach me
+  <span class="t-hi">status</span>    — availability
+  <span class="t-hi">vibe</span>      — vibe check
+  <span class="t-hi">clear</span>     — clear terminal`,
+
+  whoislynax: `<span class="t-hi">lynax</span> — developer from russia
+started coding at 9. never stopped.
+python · c++ · linux · bots · automation
+<span class="t-dim">// sometimes things that shouldn't work — do.</span>`,
+
+  skills: `<span class="t-hi">languages:</span>   Python · C++
+<span class="t-hi">frameworks:</span>  aiogram · Qt · sqlalchemy
+<span class="t-hi">databases:</span>   PostgreSQL · SQLite3
+<span class="t-hi">systems:</span>     Arch Linux · shell · servers
+<span class="t-hi">tools:</span>       Git · panels · deployment`,
+
+  projects: `<span class="t-green">✓</span> minecraft-bot-fisherman   <span class="t-dim">done</span>
+<span class="t-green">✓</span> discordrpc-cmus           <span class="t-dim">done</span>
+<span class="t-hi">●</span> cafe-bot                  <span class="t-dim">in progress</span>
+<span class="t-hi">●</span> smm-assistant             <span class="t-dim">in progress</span>
+<span class="t-dim">→ github.com/lynaxpy</span>`,
+
+  contact: `<span class="t-hi">telegram:</span>  @hackrf1one
+<span class="t-hi">github:</span>    lynaxpy
+<span class="t-dim">// open for freelance work</span>`,
+
+  status: `<span class="t-green">● online</span>
+availability:  <span class="t-hi">open</span>
+looking for:   <span class="t-hi">interesting problems</span>
+response time: <span class="t-dim">fast</span>`,
+
+  vibe: `currently listening: aphex twin
+aesthetic: opium / dark minimal
+vape: knight 80
+<span class="t-dim">// living in the terminal since age 9</span>`,
+};
+
+const tBody = document.getElementById('termBody');
+const tBootCmd = document.getElementById('bootCmd');
+const tOutput = document.getElementById('termOutput');
+const tInputRow = document.getElementById('termInputRow');
+const tInput = document.getElementById('termInput');
+
+function termPrint(html) {
+  const d = document.createElement('div');
+  d.className = 't-output';
+  d.innerHTML = html;
+  tBody.appendChild(d);
+  tBody.scrollTop = tBody.scrollHeight;
+}
+
+function termEcho(cmd) {
+  const d = document.createElement('div');
+  d.className = 't-line';
+  d.innerHTML = `<span class="t-prompt">lynax@arch:~$</span> <span class="t-cmd">${cmd}</span>`;
+  tBody.appendChild(d);
+}
+
+// boot typewriter
+const bootText = 'cat welcome.txt';
+let bi = 0;
+const bootTick = setInterval(() => {
+  if (bi < bootText.length) {
+    tBootCmd.textContent += bootText[bi++];
+  } else {
+    clearInterval(bootTick);
+    setTimeout(() => {
+      tOutput.innerHTML = `<span class="t-hi">welcome to lynax's terminal.</span>\ntype <span class="t-hi">help</span> to see commands.`;
+      tBody.appendChild(tInputRow);
+      tInputRow.style.display = 'flex';
+      tBody.scrollTop = tBody.scrollHeight;
+    }, 350);
+  }
+}, 55);
+
+tInput.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const cmd = tInput.value.trim().toLowerCase();
+  tInput.value = '';
+  if (!cmd) return;
+
+  termEcho(cmd);
+
+  if (cmd === 'clear') {
+    tBody.innerHTML = '';
+    tBody.appendChild(tInputRow);
+    tInputRow.style.display = 'flex';
+    tBody.scrollTop = 0;
+    return;
+  }
+
+  if (termCommands[cmd]) {
+    termPrint(termCommands[cmd]);
+  } else {
+    termPrint(`<span style="color:#333">command not found: <span class="t-hi">${cmd}</span> — type <span class="t-hi">help</span></span>`);
+  }
+
+  tBody.scrollTop = tBody.scrollHeight;
+});
+
+document.querySelector('.terminal-box').addEventListener('click', () => tInput.focus());
+
+
+
+
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting) {
+      e.target.style.opacity='1';
+      e.target.style.filter='blur(0)';
+      e.target.style.transform='translateY(0)';
+    }
+  });
+}, {threshold:0.08});
+document.querySelectorAll('.skill-item,.project-item,.stat-item,.contact-item').forEach((el,i) => {
+  el.style.opacity='0';
+  el.style.filter='blur(3px)';
+  el.style.transform='translateY(10px)';
+  el.style.transition=`opacity 0.5s ${i*0.05}s, filter 0.5s ${i*0.05}s, transform 0.5s ${i*0.05}s, background 0.25s`;
+  obs.observe(el);
+});
+</script>
+</body>
+</html>
